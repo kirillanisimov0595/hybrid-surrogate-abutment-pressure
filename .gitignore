@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.pkl
+models/
+figures/
+results/
+*.xlsx
+venv/
+.env/
+.vscode/
+.idea/
+.DS_Store
