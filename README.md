@@ -3,7 +3,7 @@
 Hybrid surrogate machine learning model (XGBoost) for operational prediction
 of abutment pressure ahead of the longwall face during formation of a demounting chamber.
 
-**Update (2026):** The plotting pipeline was revised to generate **English-language figures and labels** for international publication (IJMRE manuscript). All chart titles, axis labels, legends, and exported filenames follow English conventions.
+**Update (2026):** The plotting pipeline was revised to generate **English-language figures and labels** for international users. All chart titles, axis labels, legends, and exported filenames follow English conventions.
 
 ## Key Metrics
 
@@ -34,7 +34,7 @@ of abutment pressure ahead of the longwall face during formation of a demounting
 # Install
 pip install -r requirements.txt
 
-# Train (requires data files in Лаборатория/ and Нагрузка/)
+# Train (requires data files in Labs/ and Pressure/)
 python model_train.py
 
 # Predict
@@ -66,14 +66,14 @@ Example copies for manuscript submission are also stored in `docs/figures/`.
 
 ## Input Data Format
 
-### Physical Modeling Data (`Лаборатория/coefs.xlsx`)
+### Physical Modeling Data (`Labs/coefs.xlsx`)
 - Column B: Distance in model (cm), scale 1:50
 - Column C: Sensor ID (1-8)
 - Column D: Stress concentration coefficient K
-- Stage headers: "Этап N" or just number N (N = 2, 3, 5, ..., 25)
+- Stage headers: "Stage N" or just number N (N = 2, 3, 5, ..., 25)
 
-### Numerical Modeling Data (`Нагрузка/*.xlsx`)
-- Filename format: "Nm гл Hm.xlsx" (N = seam thickness, H = depth)
+### Numerical Modeling Data (`Pressure/*.xlsx`)
+- Filename format: "Nm main Hm.xlsx" (N = seam thickness, H = depth)
 - Data starts from row 8
 - Each stage (1-24): X, Y, Distance [m], Sigma One [MPa]
 - 4 columns per stage
