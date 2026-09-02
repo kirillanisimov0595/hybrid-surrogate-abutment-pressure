@@ -1,14 +1,40 @@
+# Python
 __pycache__/
 *.py[cod]
-*.pkl
-models/
-/figures/
-results/
-*.xlsx
+*$py.class
+*.so
+.Python
+
+# Virtual environments
 venv/
+env/
 .env/
+.venv/
+
+# IDEs
 .vscode/
 .idea/
 .DS_Store
+
+# Data files (not tracked - too large)
+Labs/
+Pressure/
+*.xlsx
+*.xls
+*.csv
+
+# Model artifacts
+*.pkl
+*.joblib
+models/
+results/
+figures/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Keep example figures for documentation
+!docs/
 !docs/figures/
 !docs/figures/**
