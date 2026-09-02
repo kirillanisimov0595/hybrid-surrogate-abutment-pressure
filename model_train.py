@@ -349,6 +349,11 @@ def main():
     print(f"  Диапазон H: [{df_hybrid['H_m'].min():.0f}, {df_hybrid['H_m'].max():.0f}] м")
     print(f"  Диапазон m_plast: [{df_hybrid['m_plast_m'].min():.0f}, {df_hybrid['m_plast_m'].max():.0f}] м")
     
+    # Очистка гибридного датасета от NaN и inf
+    df_hybrid = df_hybrid.dropna(subset=['P_MPa', 'd_m'])
+    df_hybrid = df_hybrid[~df_hybrid.isin([np.inf, -np.inf]).any(axis=1)]
+    print(f"  После очистки: {len(df_hybrid)} точек")
+    
     # Шаг 5: Разделение train/test
     print("\n[5/9] Разделение на train/test...")
     df_hybrid['H_bin'] = pd.cut(df_hybrid['H_m'], bins=5, labels=False)
@@ -427,36 +432,47 @@ def main():
     # Шаг 8: Графики
     print("\n[8/9] Построение графиков...")
     
-    # --- График 1: Predicted vs Actual ---
+    # --- График 1: Predicted vs Actual (XGBoost) ---
     fig, ax = plt.subplots(figsize=(10, 8))
-    ax.scatter(y_test, y_pred_xgb, alpha=0.3, edgecolors='black', linewidth=0.2, s=30)
-    lims = [min(y_test.min(), y_pred_xgb.min()), max(y_test.max(), y_pred_xgb.max())]
-    ax.plot(lims, lims, 'r--', linewidth=2, label='y = x')
-    ax.set_xlabel('Фактическое давление, МПа')
-    ax.set_ylabel('Предсказанное давление, МПа')
-    ax.set_title(f'XGBoost: Predicted vs Actual\n'
-                 f'R2 = {r2_score(y_test, y_pred_xgb):.4f}, '
-                 f'MAE = {mean_absolute_error(y_test, y_pred_xgb):.2f} МПа')
+    
+    # Только точки XGBoost
+    ax.scatter(y_test, y_pred_xgb, alpha=0.3, edgecolors='black', 
+               linewidth=0.2, s=30, c='steelblue', label='XGBoost')
+    
+    # Фиксированные пределы
+    ax.set_xlim(-25, 75)
+    ax.set_ylim(-25, 75)
+    
+    # Линия y=x
+    ax.plot([-25, 75], [-25, 75], 'r--', linewidth=2, label='y = x')
+    
+    ax.set_xlabel('Actual pressure, MPa')
+    ax.set_ylabel('Predicted pressure, MPa')
+    ax.set_title(f'XGBoost: predicted vs actual\n'
+                 f'R² = {r2_score(y_test, y_pred_xgb):.4f}, '
+                 f'MAE = {mean_absolute_error(y_test, y_pred_xgb):.2f} MPa')
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(RESULTS_DIR / 'fig1_predicted_vs_actual.png', dpi=300, bbox_inches='tight')
+    fig.savefig(RESULTS_DIR / 'fig1_predicted_vs_actual.svg', bbox_inches='tight')
     plt.close(fig)
-    print("  [OK] fig1_predicted_vs_actual.png")
+    print("  [OK] fig1_predicted_vs_actual.png/.svg")
     
     # --- График 2: Residuals ---
     residuals = y_pred_xgb - y_test
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.scatter(y_test, residuals, alpha=0.3, edgecolors='black', linewidth=0.2, s=30)
     ax.axhline(y=0, color='r', linestyle='--', linewidth=2)
-    ax.set_xlabel('Фактическое давление, МПа')
-    ax.set_ylabel('Остатки, МПа')
-    ax.set_title('XGBoost: Residuals Plot')
+    ax.set_xlabel('Actual pressure, MPa')
+    ax.set_ylabel('Residuals, MPa')
+    ax.set_title('XGBoost: residual plot')
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(RESULTS_DIR / 'fig2_residuals.png', dpi=300, bbox_inches='tight')
+    fig.savefig(RESULTS_DIR / 'fig2_residuals.svg', bbox_inches='tight')
     plt.close(fig)
-    print("  [OK] fig2_residuals.png")
+    print("  [OK] fig2_residuals.png/.svg")
     
     # --- График 3: Слепая валидация ---
     if len(df_blind) > 0:
@@ -474,20 +490,28 @@ def main():
         
         fig, ax = plt.subplots(figsize=(12, 7))
         ax.plot(df_blind['d_m'].values[sort_idx], y_blind_pred[sort_idx],
-                'r-', linewidth=2, alpha=0.8, label='Прогноз XGBoost')
+                'r-', linewidth=2, alpha=0.8, label='XGBoost prediction')
         ax.scatter(df_blind['d_m'].values[sort_idx], y_blind_true[sort_idx],
-                   s=15, c='blue', marker='o', alpha=0.5, label='FLAC3D (эталон)')
-        ax.set_xlabel('Расстояние от забоя d, м')
-        ax.set_ylabel('Вертикальное давление P, МПа')
+                   s=15, c='blue', marker='o', alpha=0.5, label='FLAC3D (reference)')
+        ax.set_xlabel('Distance from face d, m')
+        ax.set_ylabel('Vertical pressure P, MPa')
         params = parse_filename(blind_filename)
-        ax.set_title(f'Слепая валидация: m_plast={params["m_plast_m"]:.0f}м, '
-                     f'H={params["H_m"]:.0f}м\n(данные НЕ использовались при обучении)')
+        ax.set_title(
+            f'Blind validation: seam thickness m = {params["m_plast_m"]:.0f} m, '
+            f'depth H = {params["H_m"]:.0f} m\n(data excluded from training)'
+        )
+        ax.set_xlim(-5, 45)
+        ax.set_ylim(-5, 60)
         ax.legend()
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
         fig.savefig(RESULTS_DIR / 'fig3_blind_validation.png', dpi=300, bbox_inches='tight')
+        fig.savefig(RESULTS_DIR / 'fig3_blind_validation.svg', bbox_inches='tight')
+        fig.savefig(RESULTS_DIR / 'figure4_blind_validation.png', dpi=300, bbox_inches='tight')
+        fig.savefig(RESULTS_DIR / 'figure4_blind_validation.svg', bbox_inches='tight')
         plt.close(fig)
-        print("  [OK] fig3_blind_validation.png")
+        print("  [OK] fig3_blind_validation.png/.svg")
+        print("  [OK] figure4_blind_validation.png/.svg")
         
         blind_r2 = r2_score(y_blind_true, y_blind_pred)
         blind_mae = mean_absolute_error(y_blind_true, y_blind_pred)
@@ -504,25 +528,44 @@ def main():
     
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.barh(feat_imp['feature'], feat_imp['importance'], color='steelblue', edgecolor='black', linewidth=0.5)
-    ax.set_xlabel('Важность признака')
-    ax.set_title('XGBoost: Feature Importance')
+    ax.set_xlabel('Feature importance')
+    ax.set_title('XGBoost: feature importance')
     ax.grid(True, alpha=0.3, axis='x')
     fig.tight_layout()
     fig.savefig(RESULTS_DIR / 'fig4_feature_importance.png', dpi=300, bbox_inches='tight')
+    fig.savefig(RESULTS_DIR / 'fig4_feature_importance.svg', bbox_inches='tight')
     plt.close(fig)
-    print("  [OK] fig4_feature_importance.png")
+    print("  [OK] fig4_feature_importance.png/.svg")
     
-    # --- График 5: Пространственно-временная тепловая карта (физическое моделирование) ---
+    # --- График 5: Пространственно-временная тепловая карта ---
     print("  Строю пространственно-временную тепловую карту...")
-    df_heatmap = df_phys.copy()
-    
-    d_grid = np.linspace(-5, 35, 80)
-    stages = sorted(df_heatmap['stage'].unique())
-    
-    heatmap_data = np.zeros((len(stages), len(d_grid)))
-    
+
+    # Параметры физического эксперимента
+    # Шаг подвигания забоя: 1 м (натурный) — из диссертации
+    STEP = 1.0  # м
+
+    # Координаты точек массива (фиксированные в пространстве)
+    x_points = np.linspace(-5, 40, 90)  # 90 точек вдоль выемочного столба
+
+    # Этапы подвигания
+    stages = sorted(df_phys['stage'].unique())
+
+    # Координата забоя на каждом этапе:
+    # забой стартует с X=0 и движется вперёд на STEP каждый этап
+    # X_face(stage) = X_face_start + (stage - stage_min) * STEP
+    stage_min = min(stages)
+    x_face_start = 0.0  # начальное положение забоя (м), уточни по данным
+
+    heatmap_data = np.zeros((len(stages), len(x_points)))
+
     for i, stage in enumerate(stages):
-        for j, d_val in enumerate(d_grid):
+        # Текущее положение забоя
+        x_face = x_face_start + (stage - stage_min) * STEP
+        
+        for j, x_point in enumerate(x_points):
+            # Расстояние от точки массива до забоя
+            d_val = x_point - x_face
+            
             row_features = {
                 'd_m': d_val,
                 'H_m': H_PHYS,
@@ -541,18 +584,26 @@ def main():
                     X_pred[0, k] = 0
             
             heatmap_data[i, j] = best_model.predict(X_pred)[0]
-    
+
     fig, ax = plt.subplots(figsize=(14, 8))
-    im = ax.pcolormesh(d_grid, stages, heatmap_data, cmap='RdYlBu_r', shading='auto')
-    cbar = fig.colorbar(im, ax=ax, label='Вертикальное давление P, МПа')
-    ax.set_xlabel('Расстояние от забоя d, м')
-    ax.set_ylabel('Этап подвигания забоя')
-    ax.set_title('Пространственно-временная эволюция опорного давления\n'
-                 'H=208 м, σ=19 МПа, B=4.0 м, m=2.0 м (реконструкция суррогатной модели)')
+    im = ax.pcolormesh(x_points, stages, heatmap_data, cmap='RdYlBu_r', shading='auto')
+    cbar = fig.colorbar(im, ax=ax, label='Vertical pressure P, MPa')
+    ax.set_xlabel('Coordinate along mining panel, m')
+    ax.set_ylabel('Face advance stage')
+    ax.set_title(
+        'Spatio-temporal evolution of abutment pressure\n'
+        f'H = {H_PHYS:.0f} m, σ = {SIGMA_PHYS:.0f} MPa, '
+        f'B = {B_PHYS:.1f} m, m = {M_PLAST_PHYS:.1f} m '
+        '(surrogate-model reconstruction)'
+    )
     fig.tight_layout()
     fig.savefig(RESULTS_DIR / 'fig5_spacetime_heatmap.png', dpi=300, bbox_inches='tight')
+    fig.savefig(RESULTS_DIR / 'fig5_spacetime_heatmap.svg', bbox_inches='tight')
+    fig.savefig(RESULTS_DIR / 'figure5_spacetime_heatmap.png', dpi=300, bbox_inches='tight')
+    fig.savefig(RESULTS_DIR / 'figure5_spacetime_heatmap.svg', bbox_inches='tight')
     plt.close(fig)
-    print("  [OK] fig5_spacetime_heatmap.png")
+    print("  [OK] fig5_spacetime_heatmap.png/.svg")
+    print("  [OK] figure5_spacetime_heatmap.png/.svg")
     
     # Шаг 9: Сохранение модели
     print("\n[9/9] Сохранение модели...")
