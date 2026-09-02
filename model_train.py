@@ -20,65 +20,65 @@ warnings.filterwarnings('ignore')
 matplotlib.use('Agg')
 plt.rcParams['font.size'] = 12
 plt.rcParams['figure.dpi'] = 300
-# Для кириллицы
+# Font settings for international compatibility
 plt.rcParams['font.family'] = 'DejaVu Sans'
 
 BASE_DIR = Path(__file__).parent
-LAB_DIR = BASE_DIR / 'Лаборатория'
-NAGRUZKA_DIR = BASE_DIR / 'Нагрузка'
+LAB_DIR = BASE_DIR / 'Labs'
+PRESSURE_DIR = BASE_DIR / 'Pressure'
 RESULTS_DIR = BASE_DIR / 'results'
 
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# КОНСТАНТЫ (из диссертации)
-GAMMA = 0.025  # МПа/м, удельный вес пород
-H_PHYS = 208.0  # м, глубина для физического моделирования
-SIGMA_PHYS = 19.0  # МПа, прочность непосредственной кровли
-B_PHYS = 4.0  # м, ширина ДК
-M_PLAST_PHYS = 2.0  # м, мощность пласта
+# CONSTANTS (from dissertation research)
+GAMMA = 0.025  # MPa/m, unit weight of overburden rocks
+H_PHYS = 208.0  # m, depth for physical modeling
+SIGMA_PHYS = 19.0  # MPa, immediate roof strength
+B_PHYS = 4.0  # m, longwall panel width
+M_PLAST_PHYS = 2.0  # m, coal seam thickness
 
-SIGMA_NUM = 19.0  # МПа, прочность для численного моделирования (константа)
-B_NUM = 4.0  # м, ширина ДК для численного моделирования (константа)
+SIGMA_NUM = 19.0  # MPa, strength for numerical modeling (constant)
+B_NUM = 4.0  # m, longwall panel width for numerical modeling (constant)
 
 
 def load_physical_data() -> pd.DataFrame:
     """
-    Загружает и обрабатывает данные физического моделирования из coefs.xlsx.
+    Loads and processes physical modeling data from coefs.xlsx.
     
     Returns
     -------
-    pd.DataFrame с колонками: d_m, H_m, sigma_MPa, B_m, m_plast_m, sensor_id, stage, K, P_MPa
+    pd.DataFrame with columns: d_m, H_m, sigma_MPa, B_m, m_plast_m, sensor_id, stage, K, P_MPa
     """
     file_path = LAB_DIR / 'coefs.xlsx'
     if not file_path.exists():
-        raise FileNotFoundError(f"Файл не найден: {file_path}")
+        raise FileNotFoundError(f"File not found: {file_path}")
     
-    print(f"Загрузка физических данных: {file_path}")
+    print(f"Loading physical modeling data: {file_path}")
     
-    # Читаем ВЕСЬ файл в "сыром" виде (нет фиксированной структуры)
+    # Read the ENTIRE file in raw format (no fixed structure)
     raw = pd.read_excel(file_path, header=None)
-    print(f"  Сырых строк: {len(raw)}")
+    print(f"  Raw rows: {len(raw)}")
     
     records = []
     current_stage = None
     
     for idx, row in raw.iterrows():
-        # Проверяем, не заголовок ли это этапа
-        col_c = row.iloc[2] if len(row) > 2 else None  # номер датчика
-        col_d = row.iloc[3] if len(row) > 3 else None  # значение или заголовок
+        # Check if this is a stage header row
+        col_c = row.iloc[2] if len(row) > 2 else None  # sensor number
+        col_d = row.iloc[3] if len(row) > 3 else None  # value or header
 
-        # Проверка: это заголовок этапа?
+        # Check: is this a stage header?
         is_stage_header = False
 
         if isinstance(col_d, str) and 'Этап' in col_d:
-            # Старый формат: "Этап 2, коэф.конц. напряжений"
+            # Legacy format: "Этап 2, коэф.конц. напряжений" (Stage 2, stress concentration factor)
             match = re.search(r'Этап\s+(\d+)', col_d)
             if match:
                 current_stage = int(match.group(1))
                 is_stage_header = True
         elif isinstance(col_d, (int, float)) and not pd.isna(col_d):
-            # Новый формат: просто число (5, 6, 7...)
-            # Проверяем, что колонка C (номер датчика) пустая
+            # New format: just a number (5, 6, 7...)
+            # Check that column C (sensor number) is empty
             if pd.isna(col_c) or col_c == '' or col_c is None:
                 current_stage = int(col_d)
                 is_stage_header = True
@@ -86,19 +86,19 @@ def load_physical_data() -> pd.DataFrame:
         if is_stage_header:
             continue
         
-        # Пропускаем строки без данных
+        # Skip rows without data
         if pd.isna(row.iloc[2]) and pd.isna(row.iloc[3]):
             continue
         
         try:
             sensor_id = int(row.iloc[2])
-            distance_model_cm = float(row.iloc[1])  # столбец B
-            K = float(row.iloc[3])  # столбец D
+            distance_model_cm = float(row.iloc[1])  # column B
+            K = float(row.iloc[3])  # column D
             
-            # Пересчёт расстояния: см → м, масштаб 1:50
+            # Convert distance: cm → m, scale factor 1:50
             d_m = distance_model_cm / 100.0 * 50.0
             
-            # Пересчёт давления: P = K * γ * H
+            # Convert pressure: P = K * γ * H
             P_MPa = K * GAMMA * H_PHYS
             
             records.append({
@@ -116,19 +116,19 @@ def load_physical_data() -> pd.DataFrame:
             continue
     
     df = pd.DataFrame(records)
-    print(f"  Загружено точек: {len(df)}")
-    print(f"  Этапы: {sorted(df['stage'].unique())}")
-    print(f"  Датчики: {sorted(df['sensor_id'].unique())}")
-    print(f"  d_m: [{df['d_m'].min():.2f}, {df['d_m'].max():.2f}] м")
-    print(f"  P_MPa: [{df['P_MPa'].min():.2f}, {df['P_MPa'].max():.2f}] МПа")
+    print(f"  Loaded data points: {len(df)}")
+    print(f"  Stages: {sorted(df['stage'].unique())}")
+    print(f"  Sensors: {sorted(df['sensor_id'].unique())}")
+    print(f"  d_m range: [{df['d_m'].min():.2f}, {df['d_m'].max():.2f}] m")
+    print(f"  P_MPa range: [{df['P_MPa'].min():.2f}, {df['P_MPa'].max():.2f}] MPa")
     
     return df
 
 
 def parse_filename(filename: str) -> dict:
     """
-    Извлекает параметры из имени файла.
-    Пример: "3м гл 150м.xlsx" → {'m_plast_m': 3.0, 'H_m': 150.0}
+    Extracts parameters from filename.
+    Example: "3м гл 150м.xlsx" → {'m_plast_m': 3.0, 'H_m': 150.0}
     """
     match = re.search(r'(\d+)\s*м\s*гл\s*(\d+)\s*м', filename, re.IGNORECASE)
     if match:
@@ -141,18 +141,18 @@ def parse_filename(filename: str) -> dict:
 
 def load_single_numerical_file(file_path: Path) -> pd.DataFrame:
     """
-    Загружает ОДИН файл численного моделирования.
+    Loads a SINGLE numerical modeling file.
     """
     params = parse_filename(file_path.name)
     if params is None:
-        print(f"  [!] Не удалось распарсить имя файла: {file_path.name}, пропущен")
+        print(f"  [!] Failed to parse filename: {file_path.name}, skipped")
         return pd.DataFrame()
     
     try:
-        # Читаем, начиная со строки 8 (0-based index = 7)
+        # Read starting from row 8 (0-based index = 7)
         raw = pd.read_excel(file_path, header=None, skiprows=7)
     except Exception as e:
-        print(f"  [!] Ошибка чтения {file_path.name}: {e}")
+        print(f"  [!] Error reading {file_path.name}: {e}")
         return pd.DataFrame()
     
     records = []
@@ -161,7 +161,7 @@ def load_single_numerical_file(file_path: Path) -> pd.DataFrame:
     
     for stage_idx in range(num_stages):
         start_col = stage_idx * cols_per_stage
-        # Колонки: X, Y, Distance, Sigma One
+        # Columns: X, Y, Distance, Sigma One
         if start_col + 3 >= raw.shape[1]:
             break
         
@@ -194,55 +194,55 @@ def load_single_numerical_file(file_path: Path) -> pd.DataFrame:
 
 def load_numerical_data(exclude_file: str = None) -> pd.DataFrame:
     """
-    Загружает ВСЕ файлы численного моделирования из папки Нагрузка.
+    Loads ALL numerical modeling files from the Pressure folder.
     
     Parameters
     ----------
     exclude_file : str or None
-        Имя файла, который нужно ИСКЛЮЧИТЬ (для слепой валидации)
+        Filename to EXCLUDE (for blind validation)
     
     Returns
     -------
     pd.DataFrame
     """
     all_data = []
-    files = sorted(NAGRUZKA_DIR.glob('*.xlsx'))
-    print(f"Найдено файлов численного моделирования: {len(files)}")
+    files = sorted(PRESSURE_DIR.glob('*.xlsx'))
+    print(f"Numerical modeling files found: {len(files)}")
     
     for file_path in files:
-        # Пропускаем временные файлы Excel и файлы пояснений
+        # Skip temporary Excel files and documentation files
         if file_path.name.startswith('~$') or 'Пояснение' in file_path.name or 'пояснение' in file_path.name:
-            print(f"  Пропущен: {file_path.name}")
+            print(f"  Skipped: {file_path.name}")
             continue
         
         if exclude_file and file_path.name == exclude_file:
-            print(f"  ИСКЛЮЧЁН (слепая выборка): {file_path.name}")
+            print(f"  EXCLUDED (blind validation set): {file_path.name}")
             continue
         
         df = load_single_numerical_file(file_path)
         if len(df) > 0:
             all_data.append(df)
             params = parse_filename(file_path.name)
-            print(f"  {file_path.name}: {len(df)} точек, "
-                  f"m_plast={params['m_plast_m']:.0f}м, H={params['H_m']:.0f}м")
+            print(f"  {file_path.name}: {len(df)} points, "
+                  f"m_plast={params['m_plast_m']:.0f}m, H={params['H_m']:.0f}m")
     
     result = pd.concat(all_data, ignore_index=True)
-    print(f"Всего загружено численных точек: {len(result)}")
+    print(f"Total numerical data points loaded: {len(result)}")
     return result
 
 
 def load_blind_data() -> tuple:
     """
-    Выбирает ОДИН файл для слепой валидации и загружает его.
-    Использует файл "3м гл 250м.xlsx" — промежуточная глубина 250 м,
-    которая хорошо подходит для проверки генерализации.
+    Selects ONE file for blind validation and loads it.
+    Uses file "3м гл 250м.xlsx" — intermediate depth of 250 m,
+    which is well-suited for testing generalization capability.
     """
     blind_filename = "3м гл 250м.xlsx"
-    blind_path = NAGRUZKA_DIR / blind_filename
+    blind_path = PRESSURE_DIR / blind_filename
     
     if not blind_path.exists():
-        # Запасной вариант — любой файл с 250 м
-        files = sorted(NAGRUZKA_DIR.glob('*.xlsx'))
+        # Fallback option — any file with 250 m depth
+        files = sorted(PRESSURE_DIR.glob('*.xlsx'))
         blind_path = None
         for f in files:
             if '250м' in f.name and 'Пояснение' not in f.name:
@@ -251,31 +251,34 @@ def load_blind_data() -> tuple:
                 break
         
         if blind_path is None:
-            print("[!] Не удалось найти файл с глубиной 250 м для слепой валидации")
+            print("[!] Could not find file with 250 m depth for blind validation")
             return pd.DataFrame(), None
     
     df_blind = load_single_numerical_file(blind_path)
-    print(f"\nСлепая выборка: {blind_filename}, {len(df_blind)} точек")
+    print(f"\nBlind validation set: {blind_filename}, {len(df_blind)} points")
     params = parse_filename(blind_filename)
     if params:
-        print(f"  Параметры: m_plast={params['m_plast_m']:.0f}м, H={params['H_m']:.0f}м")
+        print(f"  Parameters: m_plast={params['m_plast_m']:.0f}m, H={params['H_m']:.0f}m")
     
     return df_blind, blind_filename
 
 
 def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Добавляет инженерные признаки на основе расстояния d_m."""
+    """Adds engineered features based on distance from longwall face d_m."""
     df = df.copy()
+    # Natural log transform for nonlinear stress decay with distance
     df['ln_d']   = np.log(np.abs(df['d_m']) + 1.0)
+    # Square root transform to capture stress gradient near the face
     df['sqrt_d'] = np.sqrt(np.abs(df['d_m']) + 1.0)
+    # Inverse distance weighting for near-field stress concentration
     df['inv_d']  = 1.0 / (np.abs(df['d_m']) + 0.1)
     return df
 
 
 def add_sensor_onehot(df: pd.DataFrame) -> tuple:
     """
-    Создаёт one-hot encoding для датчиков.
-    Если колонка sensor_id отсутствует — все one-hot колонки = 0.
+    Creates one-hot encoding for pressure sensors.
+    If sensor_id column is absent — all one-hot columns = 0.
     """
     sensor_list = ['D1','D2','D3','D4','D5','D6','D7','D8']
     sensor_cols = [f'sensor_{s}' for s in sensor_list]
@@ -293,48 +296,48 @@ def add_sensor_onehot(df: pd.DataFrame) -> tuple:
 
 def main():
     print("="*60)
-    print("ГИБРИДНАЯ СУРРОГАТНАЯ МОДЕЛЬ XGBOOST")
-    print("Прогнозирование опорного давления")
+    print("HYBRID SURROGATE MODEL XGBOOST")
+    print("Abutment Pressure Prediction")
     print("="*60)
     
-    # Шаг 0: Загрузка слепой выборки и определение исключаемого файла
-    print("\n[0/9] Подготовка слепой выборки...")
+    # Step 0: Load blind validation set and determine excluded file
+    print("\n[0/9] Preparing blind validation set...")
     df_blind, blind_filename = load_blind_data()
     
-    # Шаг 1: Загрузка данных
-    print("\n[1/9] Загрузка данных...")
+    # Step 1: Data loading
+    print("\n[1/9] Loading data...")
     df_phys = load_physical_data()
     df_num  = load_numerical_data(exclude_file=blind_filename)
     
     if len(df_num) == 0:
-        print("ОШИБКА: не загружено ни одной точки численного моделирования!")
+        print("ERROR: No numerical modeling data points loaded!")
         return
     
-    # Шаг 2: Инженерные признаки
-    print("\n[2/9] Создание инженерных признаков...")
+    # Step 2: Feature engineering
+    print("\n[2/9] Creating engineered features...")
     df_phys = add_engineered_features(df_phys)
     df_num  = add_engineered_features(df_num)
     
-    # Шаг 3: One-hot encoding датчиков
-    print("\n[3/9] Кодирование датчиков...")
+    # Step 3: One-hot encoding for sensors
+    print("\n[3/9] Encoding sensors...")
     df_phys, sensor_cols = add_sensor_onehot(df_phys)
     for col in sensor_cols:
         if col not in df_num.columns:
             df_num[col] = 0
     
-    # Шаг 4: Объединение в гибридный датасет
-    print("\n[4/9] Формирование гибридного датасета...")
+    # Step 4: Building hybrid dataset
+    print("\n[4/9] Building hybrid dataset...")
     feature_cols = ['d_m','H_m','sigma_MPa','B_m','m_plast_m',
                     'ln_d','sqrt_d','inv_d'] + sensor_cols
     target_col = 'P_MPa'
     
-    # Проверяем, что все колонки есть
+    # Verify all columns exist
     for col in feature_cols:
         if col not in df_phys.columns:
-            print(f"[!] Колонка {col} отсутствует в физических данных, заполняю нулями")
+            print(f"[!] Column {col} missing in physical data, filling with zeros")
             df_phys[col] = 0
         if col not in df_num.columns:
-            print(f"[!] Колонка {col} отсутствует в численных данных, заполняю нулями")
+            print(f"[!] Column {col} missing in numerical data, filling with zeros")
             df_num[col] = 0
     
     df_hybrid = pd.concat([
@@ -342,20 +345,20 @@ def main():
         df_num[feature_cols + [target_col, 'stage']]
     ], ignore_index=True)
     
-    print(f"Гибридный датасет: {len(df_hybrid)} точек")
-    print(f"  Физическое моделирование: {len(df_phys)} точек")
-    print(f"  Численное моделирование:  {len(df_num)} точек")
-    print(f"  Признаков: {len(feature_cols)}")
-    print(f"  Диапазон H: [{df_hybrid['H_m'].min():.0f}, {df_hybrid['H_m'].max():.0f}] м")
-    print(f"  Диапазон m_plast: [{df_hybrid['m_plast_m'].min():.0f}, {df_hybrid['m_plast_m'].max():.0f}] м")
+    print(f"Hybrid dataset: {len(df_hybrid)} points")
+    print(f"  Physical modeling: {len(df_phys)} points")
+    print(f"  Numerical modeling: {len(df_num)} points")
+    print(f"  Features: {len(feature_cols)}")
+    print(f"  H range: [{df_hybrid['H_m'].min():.0f}, {df_hybrid['H_m'].max():.0f}] m")
+    print(f"  m_plast range: [{df_hybrid['m_plast_m'].min():.0f}, {df_hybrid['m_plast_m'].max():.0f}] m")
     
-    # Очистка гибридного датасета от NaN и inf
+    # Clean hybrid dataset from NaN and inf values
     df_hybrid = df_hybrid.dropna(subset=['P_MPa', 'd_m'])
     df_hybrid = df_hybrid[~df_hybrid.isin([np.inf, -np.inf]).any(axis=1)]
-    print(f"  После очистки: {len(df_hybrid)} точек")
+    print(f"  After cleaning: {len(df_hybrid)} points")
     
-    # Шаг 5: Разделение train/test
-    print("\n[5/9] Разделение на train/test...")
+    # Step 5: Train/test split
+    print("\n[5/9] Splitting into train/test sets...")
     df_hybrid['H_bin'] = pd.cut(df_hybrid['H_m'], bins=5, labels=False)
     
     X = df_hybrid[feature_cols].values
@@ -365,20 +368,20 @@ def main():
         X, y, test_size=0.30, random_state=42,
         stratify=df_hybrid['H_bin']
     )
-    print(f"  Train: {len(X_train)} точек")
-    print(f"  Test:  {len(X_test)} точек")
+    print(f"  Train: {len(X_train)} points")
+    print(f"  Test:  {len(X_test)} points")
     
-    # Шаг 6: Обучение моделей
-    print("\n[6/9] Обучение моделей...")
+    # Step 6: Model training
+    print("\n[6/9] Training models...")
     
     # Baseline: LinearRegression
-    print("  Обучаю LinearRegression...")
+    print("  Training LinearRegression...")
     lr = LinearRegression()
     lr.fit(X_train, y_train)
     y_pred_lr = lr.predict(X_test)
     
     # Baseline: Polynomial (degree=3)
-    print("  Обучаю PolynomialRegression (degree=3)...")
+    print("  Training PolynomialRegression (degree=3)...")
     poly_pipe = Pipeline([
         ('poly', PolynomialFeatures(degree=3, include_bias=False)),
         ('scaler', StandardScaler()),
@@ -387,8 +390,8 @@ def main():
     poly_pipe.fit(X_train, y_train)
     y_pred_poly = poly_pipe.predict(X_test)
     
-    # XGBoost
-    print("  Обучаю XGBoost с GridSearchCV...")
+    # XGBoost with hyperparameter tuning
+    print("  Training XGBoost with GridSearchCV...")
     xgb = XGBRegressor(random_state=42, n_jobs=-1, verbosity=0)
     
     param_grid = {
@@ -402,25 +405,25 @@ def main():
     grid.fit(X_train, y_train)
     
     best_model = grid.best_estimator_
-    print(f"  Лучшие параметры: {grid.best_params_}")
-    print(f"  Лучший R2 (CV):   {grid.best_score_:.4f}")
+    print(f"  Best parameters: {grid.best_params_}")
+    print(f"  Best R2 (CV):    {grid.best_score_:.4f}")
     
     y_pred_xgb = best_model.predict(X_test)
     
-    # Шаг 7: Оценка
-    print("\n[7/9] Оценка моделей...")
+    # Step 7: Model evaluation
+    print("\n[7/9] Evaluating models...")
     
     def evaluate(y_true, y_pred, name):
         return {
-            'Модель': name,
+            'Model': name,
             'R2': r2_score(y_true, y_pred),
             'MAE': mean_absolute_error(y_true, y_pred),
             'RMSE': np.sqrt(mean_squared_error(y_true, y_pred))
         }
     
     results = [
-        evaluate(y_test, y_pred_lr, 'Линейная регрессия'),
-        evaluate(y_test, y_pred_poly, 'Полиномиальная (deg=3)'),
+        evaluate(y_test, y_pred_lr, 'Linear Regression'),
+        evaluate(y_test, y_pred_poly, 'Polynomial (deg=3)'),
         evaluate(y_test, y_pred_xgb, 'XGBoost')
     ]
     
@@ -429,21 +432,21 @@ def main():
     print("\n" + df_results.to_string(index=False))
     df_results.to_csv(RESULTS_DIR / 'results_summary.csv', index=False)
     
-    # Шаг 8: Графики
-    print("\n[8/9] Построение графиков...")
+    # Step 8: Plotting
+    print("\n[8/9] Generating plots...")
     
-    # --- График 1: Predicted vs Actual (XGBoost) ---
+    # --- Plot 1: Predicted vs Actual (XGBoost) ---
     fig, ax = plt.subplots(figsize=(10, 8))
     
-    # Только точки XGBoost
+    # Only XGBoost points
     ax.scatter(y_test, y_pred_xgb, alpha=0.3, edgecolors='black', 
                linewidth=0.2, s=30, c='steelblue', label='XGBoost')
     
-    # Фиксированные пределы
+    # Fixed axis limits
     ax.set_xlim(-25, 75)
     ax.set_ylim(-25, 75)
     
-    # Линия y=x
+    # Identity line y=x
     ax.plot([-25, 75], [-25, 75], 'r--', linewidth=2, label='y = x')
     
     ax.set_xlabel('Actual pressure, MPa')
@@ -459,7 +462,7 @@ def main():
     plt.close(fig)
     print("  [OK] fig1_predicted_vs_actual.png/.svg")
     
-    # --- График 2: Residuals ---
+    # --- Plot 2: Residuals ---
     residuals = y_pred_xgb - y_test
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.scatter(y_test, residuals, alpha=0.3, edgecolors='black', linewidth=0.2, s=30)
@@ -474,9 +477,9 @@ def main():
     plt.close(fig)
     print("  [OK] fig2_residuals.png/.svg")
     
-    # --- График 3: Слепая валидация ---
+    # --- Plot 3: Blind validation ---
     if len(df_blind) > 0:
-        print("  Выполняю слепую валидацию...")
+        print("  Performing blind validation...")
         df_blind = add_engineered_features(df_blind)
         for col in sensor_cols:
             df_blind[col] = 0
@@ -485,7 +488,7 @@ def main():
         y_blind_true = df_blind['P_MPa'].values
         y_blind_pred = best_model.predict(X_blind)
         
-        # Сортируем по расстоянию для красивого графика
+        # Sort by distance for better visualization
         sort_idx = np.argsort(df_blind['d_m'].values)
         
         fig, ax = plt.subplots(figsize=(12, 7))
@@ -493,11 +496,11 @@ def main():
                 'r-', linewidth=2, alpha=0.8, label='XGBoost prediction')
         ax.scatter(df_blind['d_m'].values[sort_idx], y_blind_true[sort_idx],
                    s=15, c='blue', marker='o', alpha=0.5, label='FLAC3D (reference)')
-        ax.set_xlabel('Distance from face d, m')
-        ax.set_ylabel('Vertical pressure P, MPa')
+        ax.set_xlabel('Distance from longwall face d, m')
+        ax.set_ylabel('Vertical stress P, MPa')
         params = parse_filename(blind_filename)
         ax.set_title(
-            f'Blind validation: seam thickness m = {params["m_plast_m"]:.0f} m, '
+            f'Blind validation: coal seam thickness m = {params["m_plast_m"]:.0f} m, '
             f'depth H = {params["H_m"]:.0f} m\n(data excluded from training)'
         )
         ax.set_xlim(-5, 45)
@@ -515,11 +518,11 @@ def main():
         
         blind_r2 = r2_score(y_blind_true, y_blind_pred)
         blind_mae = mean_absolute_error(y_blind_true, y_blind_pred)
-        print(f"  Слепая выборка: R2={blind_r2:.4f}, MAE={blind_mae:.2f} МПа")
+        print(f"  Blind validation: R2={blind_r2:.4f}, MAE={blind_mae:.2f} MPa")
     else:
-        print("[!] Слепая выборка пуста, график не построен")
+        print("[!] Blind validation set is empty, plot not generated")
     
-    # --- График 4: Feature Importance ---
+    # --- Plot 4: Feature Importance ---
     importance = best_model.feature_importances_
     feat_imp = pd.DataFrame({
         'feature': feature_cols,
@@ -537,33 +540,33 @@ def main():
     plt.close(fig)
     print("  [OK] fig4_feature_importance.png/.svg")
     
-    # --- График 5: Пространственно-временная тепловая карта ---
-    print("  Строю пространственно-временную тепловую карту...")
+    # --- Plot 5: Spatio-temporal heatmap ---
+    print("  Generating spatio-temporal heatmap...")
 
-    # Параметры физического эксперимента
-    # Шаг подвигания забоя: 1 м (натурный) — из диссертации
-    STEP = 1.0  # м
+    # Physical experiment parameters
+    # Longwall face advance step: 1 m (field scale) — from dissertation
+    STEP = 1.0  # m
 
-    # Координаты точек массива (фиксированные в пространстве)
-    x_points = np.linspace(-5, 40, 90)  # 90 точек вдоль выемочного столба
+    # Fixed monitoring point coordinates in the rock mass
+    x_points = np.linspace(-5, 40, 90)  # 90 points along the longwall panel
 
-    # Этапы подвигания
+    # Face advance stages
     stages = sorted(df_phys['stage'].unique())
 
-    # Координата забоя на каждом этапе:
-    # забой стартует с X=0 и движется вперёд на STEP каждый этап
+    # Longwall face position at each stage:
+    # Face starts at X=0 and advances STEP meters each stage
     # X_face(stage) = X_face_start + (stage - stage_min) * STEP
     stage_min = min(stages)
-    x_face_start = 0.0  # начальное положение забоя (м), уточни по данным
+    x_face_start = 0.0  # initial face position (m), verify with data
 
     heatmap_data = np.zeros((len(stages), len(x_points)))
 
     for i, stage in enumerate(stages):
-        # Текущее положение забоя
+        # Current face position
         x_face = x_face_start + (stage - stage_min) * STEP
         
         for j, x_point in enumerate(x_points):
-            # Расстояние от точки массива до забоя
+            # Distance from monitoring point to face
             d_val = x_point - x_face
             
             row_features = {
@@ -587,8 +590,8 @@ def main():
 
     fig, ax = plt.subplots(figsize=(14, 8))
     im = ax.pcolormesh(x_points, stages, heatmap_data, cmap='RdYlBu_r', shading='auto')
-    cbar = fig.colorbar(im, ax=ax, label='Vertical pressure P, MPa')
-    ax.set_xlabel('Coordinate along mining panel, m')
+    cbar = fig.colorbar(im, ax=ax, label='Vertical stress P, MPa')
+    ax.set_xlabel('Coordinate along longwall panel, m')
     ax.set_ylabel('Face advance stage')
     ax.set_title(
         'Spatio-temporal evolution of abutment pressure\n'
@@ -605,38 +608,38 @@ def main():
     print("  [OK] fig5_spacetime_heatmap.png/.svg")
     print("  [OK] figure5_spacetime_heatmap.png/.svg")
     
-    # Шаг 9: Сохранение модели
-    print("\n[9/9] Сохранение модели...")
+    # Step 9: Model serialization
+    print("\n[9/9] Saving model...")
     joblib.dump(best_model, RESULTS_DIR / 'model.pkl')
     with open(RESULTS_DIR / 'feature_names.json', 'w', encoding='utf-8') as f:
         json.dump(feature_cols, f, ensure_ascii=False, indent=2)
-    print(f"  Модель: {RESULTS_DIR / 'model.pkl'}")
-    print(f"  Признаки: {RESULTS_DIR / 'feature_names.json'}")
+    print(f"  Model: {RESULTS_DIR / 'model.pkl'}")
+    print(f"  Features: {RESULTS_DIR / 'feature_names.json'}")
     
-    # Итог
+    # Summary
     print("\n" + "="*60)
-    print("ОБУЧЕНИЕ ЗАВЕРШЕНО")
-    best_row = df_results[df_results['Модель'] == 'XGBoost'].iloc[0]
-    print(f"XGBoost: R2={best_row['R2']:.4f}, MAE={best_row['MAE']:.2f} МПа, RMSE={best_row['RMSE']:.2f} МПа")
-    print(f"Гибридный датасет: {len(df_hybrid)} точек")
-    print(f"Графики: {RESULTS_DIR}")
-    print(f"Модель: {RESULTS_DIR}")
+    print("TRAINING COMPLETED")
+    best_row = df_results[df_results['Model'] == 'XGBoost'].iloc[0]
+    print(f"XGBoost: R2={best_row['R2']:.4f}, MAE={best_row['MAE']:.2f} MPa, RMSE={best_row['RMSE']:.2f} MPa")
+    print(f"Hybrid dataset: {len(df_hybrid)} points")
+    print(f"Plots: {RESULTS_DIR}")
+    print(f"Model: {RESULTS_DIR}")
     
-    # Сохранение итогового резюме в файл
+    # Save summary report
     with open(RESULTS_DIR / 'summary.txt', 'w', encoding='utf-8') as f:
-        f.write("ГИБРИДНАЯ СУРРОГАТНАЯ МОДЕЛЬ XGBOOST\n")
-        f.write("Прогнозирование опорного давления\n")
+        f.write("HYBRID SURROGATE MODEL XGBOOST\n")
+        f.write("Abutment Pressure Prediction\n")
         f.write("="*60 + "\n\n")
-        f.write(f"Гибридный датасет: {len(df_hybrid)} точек\n")
-        f.write(f"  Физическое моделирование: {len(df_phys)} точек\n")
-        f.write(f"  Численное моделирование:  {len(df_num)} точек\n\n")
-        f.write(f"Лучшие гиперпараметры: {grid.best_params_}\n\n")
+        f.write(f"Hybrid dataset: {len(df_hybrid)} points\n")
+        f.write(f"  Physical modeling: {len(df_phys)} points\n")
+        f.write(f"  Numerical modeling: {len(df_num)} points\n\n")
+        f.write(f"Best hyperparameters: {grid.best_params_}\n\n")
         f.write(df_results.to_string(index=False))
-        f.write("\n\nСлепая выборка: ")
+        f.write("\n\nBlind validation: ")
         if len(df_blind) > 0:
-            f.write(f"R2={blind_r2:.4f}, MAE={blind_mae:.2f} МПа\n")
+            f.write(f"R2={blind_r2:.4f}, MAE={blind_mae:.2f} MPa\n")
         else:
-            f.write("не проводилась\n")
+            f.write("not performed\n")
 
 
 if __name__ == "__main__":
