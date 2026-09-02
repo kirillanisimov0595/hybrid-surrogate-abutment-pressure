@@ -3,7 +3,7 @@
 Hybrid surrogate machine learning model (XGBoost) for operational prediction
 of abutment pressure ahead of the longwall face during formation of a demounting chamber.
 
-**Update (2026):** The plotting pipeline was revised to generate **English-language figures and labels** for international users. All chart titles, axis labels, legends, and exported filenames follow English conventions.
+**Update (2026):** The plotting pipeline was revised to generate **English-language figures and labels** for international users. All chart titles, axis labels, legends, and exported filenames follow English conventions. All comms translated in Englsih.
 
 ## Key Metrics
 
