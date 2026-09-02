@@ -3,7 +3,7 @@
 Hybrid surrogate machine learning model (XGBoost) for operational prediction
 of abutment pressure ahead of the longwall face during formation of a demounting chamber.
 
-**Update (2026):** The plotting pipeline was revised to generate **English-language figures and labels** for international publication (IJMRE manuscript). All chart titles, axis labels, legends, and exported filenames follow English conventions.
+**Update (2026):** The plotting pipeline was revised to generate **English-language figures and labels** for English-speaking users and international research use. All chart titles, axis labels, legends, and exported filenames follow English conventions.
 
 ## Key Metrics
 
@@ -18,7 +18,7 @@ of abutment pressure ahead of the longwall face during formation of a demounting
 ├── model_predict.py            # Pressure prediction script
 ├── regenerate_figures_en.py    # Rebuild English figures without retraining
 ├── requirements.txt            # Python dependencies
-├── docs/figures/               # Example manuscript figures (SVG/PNG)
+├── docs/figures/               # Example English figures (SVG/PNG)
 ├── README.md                   # This file
 └── .gitignore                  # Excluded files
 ```
@@ -44,7 +44,7 @@ python model_predict.py
 python regenerate_figures_en.py
 ```
 
-## English Figures for International Publication
+## English Figures
 
 After training (or if `results/model.pkl` already exists), run:
 
@@ -62,7 +62,7 @@ Main outputs in `results/`:
 | `fig2_residuals.*` | Residual plot |
 | `fig4_feature_importance.*` | Feature importance |
 
-Example copies for manuscript submission are also stored in `docs/figures/`.
+Example copies are also stored in `docs/figures/`.
 
 ## Input Data Format
 

@@ -1,4 +1,4 @@
-"""Regenerate manuscript figures with English labels for IJMRE submission."""
+"""Regenerate figures with English labels for international use."""
 
 from pathlib import Path
 
@@ -288,10 +288,10 @@ def main() -> None:
     print("- fig1_predicted_vs_actual.png/.svg")
     print("- fig2_residuals.png/.svg")
     print("- fig3_blind_validation.png/.svg")
-    print("- figure4_blind_validation.png/.svg  (manuscript Figure 4)")
+    print("- figure4_blind_validation.png/.svg  (blind validation)")
     print("- fig4_feature_importance.png/.svg")
     print("- fig5_spacetime_heatmap.png/.svg")
-    print("- figure5_spacetime_heatmap.png/.svg  (manuscript Figure 5)")
+    print("- figure5_spacetime_heatmap.png/.svg  (spatio-temporal heatmap)")
 
 
 if __name__ == "__main__":
