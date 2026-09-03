@@ -30,7 +30,7 @@ RESULTS_DIR = BASE_DIR / 'results'
 
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# CONSTANTS (from dissertation research)
+# CONSTANTS
 GAMMA = 0.025  # MPa/m, unit weight of overburden rocks
 H_PHYS = 208.0  # m, depth for physical modeling
 SIGMA_PHYS = 19.0  # MPa, immediate roof strength
@@ -544,7 +544,7 @@ def main():
     print("  Generating spatio-temporal heatmap...")
 
     # Physical experiment parameters
-    # Longwall face advance step: 1 m (field scale) — from dissertation
+    # Longwall face advance step: 1 m (field scale)
     STEP = 1.0  # m
 
     # Fixed monitoring point coordinates in the rock mass
