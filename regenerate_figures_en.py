@@ -1,4 +1,4 @@
-"""Regenerate manuscript figures with English labels for IJMRE submission."""
+"""Regenerate manuscript figures with English labels."""
 
 from pathlib import Path
 
